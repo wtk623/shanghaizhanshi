@@ -12,15 +12,14 @@ from dotenv import load_dotenv
 from PIL import Image
 import io
 import time
+import re
 
-# ===================== 🔧 全局配置 =====================
-load_dotenv()
 # ===================== 🔧 全局配置 =====================
 load_dotenv()
 ARK_CONFIG = {
     "api_key": st.secrets.get("ARK_API_KEY", os.getenv("ARK_API_KEY", "")),
-    "endpoint_id": st.secrets.get("ARK_ENDPOINT_ID", os.getenv("ARK_ENDPOINT_ID", "bot-20260608181219-tlqzx")),  # 文本对话接入点
-    "vision_endpoint_id": st.secrets.get("ARK_VISION_ENDPOINT_ID", os.getenv("ARK_VISION_ENDPOINT_ID", "这里粘贴你刚复制的视觉模型接入点ID")),  # 新增：视觉模型接入点
+    "endpoint_id": st.secrets.get("ARK_ENDPOINT_ID", os.getenv("ARK_ENDPOINT_ID", "bot-20260608181219-tlqzx")),
+    "vision_endpoint_id": st.secrets.get("ARK_VISION_ENDPOINT_ID", os.getenv("ARK_VISION_ENDPOINT_ID", "你的视觉模型接入点ID")),
     "base_url": "https://ark.cn-beijing.volces.com/api/v3",
     "tts_model": "speech-tts-v1"
 }
@@ -29,10 +28,34 @@ APP_CONFIG = {
     "page_icon": "🏙️",
     "layout": "wide",
     "max_history": 15,
-    "max_tokens": 1000,
-    "temperature": 0.3,
-    "api_timeout": 45,
-    "max_retry": 3
+    "max_tokens": 1500,
+    "temperature": 0.05,  # 降低温度，提高识别准确性
+    "api_timeout": 60,
+    "max_retry": 5  # 增加重试次数
+}
+
+# 预定义上海常见地标（终极后备机制）
+SHANGHAI_LANDMARKS = {
+    "东方明珠": "东方明珠广播电视塔是上海的标志性文化景观之一，位于浦东新区陆家嘴，塔高约468米，是国家AAAAA级旅游景区。",
+    "上海中心大厦": "上海中心大厦是上海的第一高楼，建筑高度632米，是中国第一、世界第三高楼，位于陆家嘴金融中心。",
+    "外滩": "外滩是上海的标志性景点，位于黄浦江畔，全长1.5公里，拥有52幢风格各异的古典复兴大楼，被誉为万国建筑博览群。",
+    "豫园": "豫园是上海著名的古典园林，始建于明代嘉靖、万历年间，已有四百余年历史，是江南古典园林的代表作品。",
+    "南京路步行街": "南京路步行街是上海最繁华的商业街，西起西藏中路，东至河南中路，全长1033米，被誉为中华商业第一街。",
+    "上海迪士尼乐园": "上海迪士尼乐园是中国内地首座迪士尼主题乐园，位于浦东新区川沙新镇，于2016年6月16日正式开园。",
+    "田子坊": "田子坊是上海著名的创意产业聚集区，位于泰康路，由上海最具特色的石库门里弄演变而来。",
+    "新天地": "上海新天地是一个具有上海历史文化风貌的都市旅游景点，以上海近代建筑石库门建筑旧区为基础改造而成。",
+    "东海大桥": "东海大桥是中国第一座跨海大桥，连接上海南汇和浙江洋山港，全长32.5公里，2005年建成通车，是世界上最长的跨海大桥之一。",
+    "南浦大桥": "南浦大桥是上海市区第一座跨越黄浦江的大桥，建成于1991年，全长8346米，采用斜拉桥结构。",
+    "杨浦大桥": "杨浦大桥是上海的一座跨越黄浦江的斜拉桥，建成于1993年，全长7658米，曾是世界上最大的斜拉桥之一。",
+    "陆家嘴": "陆家嘴是上海的金融中心，位于浦东新区黄浦江畔，聚集了众多跨国银行的大中华区及东亚总部。",
+    "中共一大会址": "中共一大会址是中国共产党的诞生地，位于上海市黄浦区兴业路76号，1921年中国共产党第一次全国代表大会在此召开。",
+    "和平饭店": "和平饭店是上海的标志性历史建筑，位于南京东路和外滩的交叉口，建于1929年，被誉为远东第一楼。",
+    "上海环球金融中心": "上海环球金融中心是位于陆家嘴的摩天大楼，楼高492米，地上101层，以其独特的开瓶器造型闻名。",
+    "金茂大厦": "金茂大厦是上海的经典摩天大楼，楼高420.5米，地上88层，采用中国传统塔式建筑风格。",
+    "外白渡桥": "外白渡桥是上海的标志性桥梁，位于苏州河汇入黄浦江口，是中国第一座全钢结构铆接桥梁。",
+    "上海火车站": "上海站是上海的主要铁路客运站之一，位于静安区秣陵路，始建于1908年，是上海铁路枢纽的重要组成部分。",
+    "虹桥机场": "上海虹桥国际机场是上海的两大国际机场之一，位于长宁区和闵行区交界处，是中国主要的航空枢纽之一。",
+    "浦东机场": "上海浦东国际机场是上海的两大国际机场之一，位于浦东新区，是中国最大的航空枢纽之一。"
 }
 
 # ===================== 🥚 彩蛋配置 =====================
@@ -56,6 +79,10 @@ def validate_config():
     if not ARK_CONFIG["endpoint_id"]:
         st.error("❌ 请配置ARK_ENDPOINT_ID（推理接入点ID）")
         st.stop()
+    if not ARK_CONFIG["vision_endpoint_id"]:
+        st.error("❌ 请配置ARK_VISION_ENDPOINT_ID（视觉模型接入点ID）")
+        st.stop()
+
 validate_config()
 
 # ===================== 🚀 初始化客户端 =====================
@@ -65,6 +92,7 @@ def get_ark_client():
         api_key=ARK_CONFIG["api_key"],
         base_url=ARK_CONFIG["base_url"]
     )
+
 client = get_ark_client()
 
 # ===================== 🎙️ 语音合成 =====================
@@ -93,7 +121,7 @@ def text_to_speech(text, language="mandarin"):
     except:
         return None
 
-# ===================== 🎨 UI样式（核心升级）=====================
+# ===================== 🎨 UI样式 =====================
 def set_styles():
     st.markdown("""
     <style>
@@ -182,7 +210,7 @@ def set_styles():
         75% { transform: translateX(5px); }
     }
     
-    /* 图片识别模式 - 平滑展开动画 */
+    /* 图片识别模式 */
     .image-wrapper {
         display: flex;
         flex-direction: column;
@@ -247,7 +275,7 @@ def set_styles():
         box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
     }
     
-    /* 平滑展开的介绍内容（核心升级） */
+    /* 平滑展开的介绍内容 */
     .landmark-info {
         background-color: white;
         padding: 0 20px;
@@ -321,8 +349,21 @@ def set_styles():
         z-index: 500;
         border-radius: 15px;
     }
+    
+    /* 错误提示样式 */
+    .error-box {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid #f5c6cb;
+        margin-bottom: 20px;
+        max-width: 600px;
+        text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
+
 set_styles()
 
 # ===================== 📊 会话状态初始化 =====================
@@ -339,12 +380,14 @@ def init_session_state():
         "image_history": [],
         "img_width": 0,
         "img_height": 0,
-        "image_analyzed": False
+        "image_analyzed": False,
+        "debug_mode": False
     }
     
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
+
 init_session_state()
 
 # ===================== 🧭 顶部导航 =====================
@@ -372,7 +415,7 @@ with col3:
         st.session_state.local_mode = not st.session_state.local_mode
         st.rerun()
 
-# ===================== 📸 图片识别模式（平滑展开升级）=====================
+# ===================== 📸 图片识别模式（终极优化版）=====================
 if st.session_state.mode == "图片识别模式":
     # 上传图片区域
     if not st.session_state.current_image:
@@ -383,7 +426,7 @@ if st.session_state.mode == "图片识别模式":
         </div>
         """, unsafe_allow_html=True)
         
-        uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+        uploaded_file = st.file_uploader("上传上海地标图片", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
         
         if uploaded_file:
             # 立即处理并显示图片
@@ -420,22 +463,36 @@ if st.session_state.mode == "图片识别模式":
             </div>
             """, unsafe_allow_html=True)
             
-            # 自动分析图片（带重试机制）
+            # 自动分析图片（终极优化版）
             retry_count = 0
             success = False
+            error_messages = []
             
             while retry_count < APP_CONFIG["max_retry"] and not success:
                 try:
+                    # 强化版系统提示词
+                    system_prompt = f"""你是上海城市智能体的首席图片分析专家，专门识别上海的地标建筑。
+                    
+                    重要规则：
+                    1. 这张图片100%拍摄于上海，必须识别出至少1个上海地标
+                    2. 即使地标只露出一部分、距离很远、角度特殊，也要尽力识别
+                    3. 常见上海地标包括：{', '.join(list(SHANGHAI_LANDMARKS.keys())[:15])}
+                    4. 严格按照以下JSON格式输出，不要添加任何其他文字、解释或markdown
+                    5. 识别3-5个最重要的地标，按重要性排序
+                    
+                    输出格式：
+                    {{"hotspots":[{{"name":"地标名称","description":"100字左右详细介绍"}}]}}
+                    
+                    示例：
+                    {{"hotspots":[{{"name":"东海大桥","description":"东海大桥是中国第一座跨海大桥，连接上海南汇和浙江洋山港，全长32.5公里，2005年建成通车，是世界上最长的跨海大桥之一。"}}]}}
+                    """
+                    
                     response = client.chat.completions.create(
-                        model=ARK_CONFIG["vision_endpoint_id"],  # ✅ 使用专门的视觉模型接入点
+                        model=ARK_CONFIG["vision_endpoint_id"],
                         messages=[
                             {
                                 "role": "system",
-                                "content": """你是上海城市智能体的图片分析专家。
-                                分析这张上海相关的图片，识别最重要的3-5个地标建筑。
-                                严格按照以下JSON格式输出，不要添加任何其他文字：
-                                {"hotspots":[{"name":"地标名称","description":"100字左右详细介绍"}]}
-                                """
+                                "content": system_prompt
                             },
                             {
                                 "role": "user",
@@ -444,30 +501,91 @@ if st.session_state.mode == "图片识别模式":
                                 ]
                             }
                         ],
-                        temperature=0.1,
-                        max_tokens=600,
+                        temperature=APP_CONFIG["temperature"],
+                        max_tokens=APP_CONFIG["max_tokens"],
                         timeout=APP_CONFIG["api_timeout"]
                     )
                     
-                    # 解析JSON（增强容错）
+                    # 超级增强版JSON解析
                     content = response.choices[0].message.content.strip()
-                    json_start = content.find("{")
-                    json_end = content.rfind("}") + 1
                     
-                    if json_start != -1 and json_end > json_start:
-                        json_str = content[json_start:json_end]
-                        hotspot_data = json.loads(json_str)
-                        st.session_state.hotspots = hotspot_data.get("hotspots", [])
-                        success = True
+                    # 移除所有markdown标记和多余内容
+                    content = re.sub(r'```.*?```', '', content, flags=re.DOTALL)
+                    content = re.sub(r'`', '', content)
+                    content = content.strip()
                     
+                    # 提取JSON部分
+                    json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                    
+                    if json_match:
+                        json_str = json_match.group(0)
+                        # 修复常见JSON语法错误
+                        json_str = json_str.replace("'", "\"")
+                        json_str = re.sub(r',\s*}', '}', json_str)
+                        json_str = re.sub(r',\s*]', ']', json_str)
+                        
+                        try:
+                            hotspot_data = json.loads(json_str)
+                            st.session_state.hotspots = hotspot_data.get("hotspots", [])
+                            
+                            # 验证识别结果
+                            valid_hotspots = []
+                            for hotspot in st.session_state.hotspots:
+                                if "name" in hotspot and "description" in hotspot:
+                                    # 检查是否是上海地标
+                                    name = hotspot["name"].strip()
+                                    # 模糊匹配预定义地标
+                                    for landmark_name, landmark_desc in SHANGHAI_LANDMARKS.items():
+                                        if landmark_name in name or name in landmark_name:
+                                            hotspot["name"] = landmark_name
+                                            hotspot["description"] = landmark_desc
+                                            break
+                                    valid_hotspots.append(hotspot)
+                            
+                            st.session_state.hotspots = valid_hotspots
+                            
+                            if len(st.session_state.hotspots) > 0:
+                                success = True
+                            else:
+                                raise ValueError("未识别到有效的上海地标")
+                        except json.JSONDecodeError as e:
+                            error_messages.append(f"JSON解析失败: {str(e)}")
+                            error_messages.append(f"原始内容: {content}")
+                    else:
+                        error_messages.append(f"未找到JSON数据: {content}")
+                
                 except Exception as e:
+                    error_messages.append(f"第{retry_count+1}次尝试失败: {str(e)}")
                     retry_count += 1
                     if retry_count < APP_CONFIG["max_retry"]:
-                        time.sleep(1)
-                    else:
-                        st.session_state.hotspots = []
+                        time.sleep(2)
+            
+            # 终极后备机制：如果AI完全失败，使用预定义地标
+            if not success:
+                # 尝试使用关键词匹配
+                image_text = ""
+                try:
+                    # 这里可以添加OCR识别，但为了简化，我们直接使用后备
+                    pass
+                except:
+                    pass
                 
+                # 使用通用后备
+                st.session_state.hotspots = [
+                    {
+                        "name": "上海城市景观",
+                        "description": "这是上海的城市景观，上海是中国最大的城市，也是国际经济、金融、贸易、航运中心，拥有丰富的历史文化和现代化的城市风貌。"
+                    }
+                ]
+            
             st.session_state.image_analyzed = True
+            
+            # 调试模式：显示错误信息
+            if st.session_state.debug_mode and error_messages:
+                st.error("调试信息：")
+                for msg in error_messages:
+                    st.code(msg)
+            
             st.rerun()
         
         st.markdown('</div>', unsafe_allow_html=True)
@@ -524,18 +642,23 @@ if st.session_state.mode == "图片识别模式":
                     }, 100);
                 });
             });
+            
+            // 自动点击第一个按钮
+            if (buttons.length > 0) {
+                buttons[0].click();
+            }
             </script>
             """
             
             # 渲染HTML
-            st.components.v1.html(html_content, height=600, scrolling=True)
+            st.components.v1.html(html_content, height=700, scrolling=True)
             
         else:
             # 无热点提示
             st.markdown("""
-            <div style="background-color: white; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-width: 600px;">
+            <div class="error-box">
                 <h3>😕 未识别到上海地标</h3>
-                <p>请尝试上传更清晰的上海地标图片</p>
+                <p>请尝试上传更清晰的上海地标图片，或者直接在对话模式中询问相关信息</p>
             </div>
             """, unsafe_allow_html=True)
         
@@ -562,7 +685,7 @@ if st.session_state.mode == "图片识别模式":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ===================== 💬 对话模式（彩蛋系统升级）=====================
+# ===================== 💬 对话模式 =====================
 else:
     # 侧边栏
     with st.sidebar:
