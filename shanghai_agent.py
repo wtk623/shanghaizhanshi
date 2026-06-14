@@ -19,7 +19,7 @@ load_dotenv()
 ARK_CONFIG = {
     "api_key": st.secrets.get("ARK_API_KEY", os.getenv("ARK_API_KEY", "")),
     "endpoint_id": st.secrets.get("ARK_ENDPOINT_ID", os.getenv("ARK_ENDPOINT_ID", "bot-20260608181219-tlqzx")),
-    "vision_endpoint_id": st.secrets.get("ARK_VISION_ENDPOINT_ID", os.getenv("ARK_VISION_ENDPOINT_ID", "你的视觉模型接入点ID")),
+    "vision_endpoint_id": st.secrets.get("ARK_VISION_ENDPOINT_ID", os.getenv("ARK_VISION_ENDPOINT_ID", "")),
     "base_url": "https://ark.cn-beijing.volces.com/api/v3",
     "tts_model": "speech-tts-v1"
 }
@@ -28,57 +28,101 @@ APP_CONFIG = {
     "page_icon": "🏙️",
     "layout": "wide",
     "max_history": 15,
-    "max_tokens": 800,
+    "max_tokens": 1000,
     "temperature": 0.1,
     "api_timeout": 60,
     "max_retry": 3
 }
 
-# ===================== 上海地标库（带别名，多级匹配）=====================
+# ===================== 上海地标库（大幅扩充+别名匹配）=====================
 SHANGHAI_LANDMARKS = {
+    # 核心摩天楼与天际线
     "东方明珠": {
         "desc": "东方明珠广播电视塔是上海的标志性文化景观之一，位于浦东新区陆家嘴，塔高约468米，是国家AAAAA级旅游景区，也是上海天际线的核心标志。",
         "aliases": ["东方明珠塔", "东方明珠广播电视塔", "明珠塔"]
     },
     "上海中心大厦": {
         "desc": "上海中心大厦是上海第一高楼，建筑高度632米，中国第一、世界第三高楼，位于陆家嘴金融中心，以螺旋上升的独特造型闻名。",
-        "aliases": ["上海中心", "上海中心大楼"]
+        "aliases": ["上海中心", "上海中心大楼", "上海之巅"]
     },
     "上海环球金融中心": {
         "desc": "上海环球金融中心位于陆家嘴，楼高492米，地上101层，因顶部独特的风洞造型被俗称为“开瓶器”，是上海地标摩天楼之一。",
-        "aliases": ["环球金融中心", "开瓶器"]
+        "aliases": ["环球金融中心", "开瓶器", "SWFC"]
     },
     "金茂大厦": {
         "desc": "金茂大厦是上海经典摩天大楼，楼高420.5米，地上88层，采用中国传统塔式建筑风格，曾是上海第一高楼。",
         "aliases": ["金茂大楼", "金茂"]
     },
+    "陆家嘴": {
+        "desc": "陆家嘴是上海金融中心，位于浦东新区黄浦江畔，聚集了众多跨国银行总部和超高层摩天大楼，是中国金融核心区。",
+        "aliases": ["陆家嘴金融区", "上海陆家嘴", "陆家嘴三件套"]
+    },
+    # 历史建筑与街区
     "外滩": {
-        "desc": "外滩是上海标志性景点，位于黄浦江畔，全长1.5公里，拥有52幢风格各异的古典复兴大楼，被誉为“万国建筑博览群”。",
-        "aliases": ["外滩建筑群", "上海外滩"]
-    },
-    "人民英雄纪念塔": {
-        "desc": "上海市人民英雄纪念塔位于外滩黄浦公园内，建成于1993年，塔高60米，由三根枪状立柱组成，是为纪念上海革命先烈而建。",
-        "aliases": ["人民英雄纪念碑", "上海人民英雄纪念塔"]
-    },
-    "豫园": {
-        "desc": "豫园是上海著名古典园林，始建于明代嘉靖年间，已有四百余年历史，是江南古典园林的代表作品，紧邻上海城隍庙。",
-        "aliases": ["上海豫园", "城隍庙豫园"]
-    },
-    "南京路步行街": {
-        "desc": "南京路步行街是上海最繁华的商业街，西起西藏中路，东至河南中路，全长1033米，被誉为“中华商业第一街”。",
-        "aliases": ["南京路", "南京东路"]
+        "desc": "外滩是上海标志性景点，位于黄浦江畔，全长1.5公里，拥有52幢风格各异的古典复兴大楼，被誉为“万国建筑博览群”，夜景尤为震撼。",
+        "aliases": ["外滩建筑群", "上海外滩", "万国建筑博览群"]
     },
     "和平饭店": {
         "desc": "和平饭店是上海标志性历史建筑，位于南京东路和外滩交叉口，建于1929年，被誉为“远东第一楼”，见证了上海近百年历史。",
         "aliases": ["上海和平饭店", "和平饭店北楼"]
     },
+    "外白渡桥": {
+        "desc": "外白渡桥是上海标志性桥梁，位于苏州河汇入黄浦江口，是中国第一座全钢结构铆接桥梁，也是上海经典影视取景地。",
+        "aliases": ["上海外白渡桥", "白渡桥"]
+    },
     "中共一大会址": {
         "desc": "中共一大会址是中国共产党诞生地，位于黄浦区兴业路76号，1921年中国共产党第一次全国代表大会在此召开。",
-        "aliases": ["一大会址", "一大会议旧址"]
+        "aliases": ["一大会址", "一大会议旧址", "兴业路一大会址"]
     },
+    "武康大楼": {
+        "desc": "武康大楼是上海标志性历史建筑，位于淮海中路和武康路交叉口，建于1924年，是上海第一座外廊式公寓大楼，网红打卡地标。",
+        "aliases": ["上海武康大楼", "诺曼底公寓"]
+    },
+    "武康路": {
+        "desc": "武康路位于徐汇区，是上海著名的历史风貌道路，沿途遍布老洋房和历史建筑，文艺气息浓厚，是上海网红打卡地之一。",
+        "aliases": ["上海武康路"]
+    },
+    "新天地": {
+        "desc": "上海新天地是具有上海历史文化风貌的都市景点，以上海近代石库门建筑旧区为基础改造，融合了历史与时尚。",
+        "aliases": ["上海新天地", "新天地石库门"]
+    },
+    "田子坊": {
+        "desc": "田子坊是上海著名创意产业聚集区，位于泰康路，由上海特色石库门里弄演变而来，充满文艺气息和老上海风情。",
+        "aliases": ["上海田子坊"]
+    },
+    "思南公馆": {
+        "desc": "思南公馆是上海历史文化风貌区，拥有花园洋房、新式里弄等多种建筑风格，是上海高端人文地标之一。",
+        "aliases": ["上海思南公馆"]
+    },
+    "1933老场坊": {
+        "desc": "1933老场坊由原上海工部局宰牲场改造而成，独特的古罗马廊柱与工业风建筑，是上海知名创意园区和摄影打卡地。",
+        "aliases": ["老场坊1933", "上海1933老场坊"]
+    },
+    # 园林与古镇
+    "豫园": {
+        "desc": "豫园是上海著名古典园林，始建于明代嘉靖年间，已有四百余年历史，是江南古典园林的代表作品，紧邻上海城隍庙。",
+        "aliases": ["上海豫园", "城隍庙豫园"]
+    },
+    "城隍庙": {
+        "desc": "上海城隍庙是上海著名道教宫观，始建于明代永乐年间，周边是上海传统民俗商业区，汇聚了众多上海老字号和特色小吃。",
+        "aliases": ["上海城隍庙", "老城隍庙", "豫园城隍庙"]
+    },
+    "朱家角古镇": {
+        "desc": "朱家角古镇位于青浦区，是上海四大历史文化名镇之一，有着千年历史，保留了典型的江南水乡风貌，小桥流水独具韵味。",
+        "aliases": ["朱家角", "青浦朱家角", "上海朱家角"]
+    },
+    "七宝古镇": {
+        "desc": "七宝古镇位于闵行区，是上海著名的江南水乡古镇，始建于北宋，因七宝寺得名，老街汇聚了众多上海传统小吃和特色商铺。",
+        "aliases": ["七宝老街", "七宝古镇", "闵行七宝"]
+    },
+    # 桥梁与交通地标
     "东海大桥": {
         "desc": "东海大桥是中国第一座跨海大桥，连接上海南汇和浙江洋山港，全长32.5公里，2005年建成通车，是世界最长跨海大桥之一。",
         "aliases": ["上海东海大桥"]
+    },
+    "上海长江大桥": {
+        "desc": "上海长江大桥是上海长江隧桥工程的重要组成部分，连接崇明岛和长兴岛，全长16.63公里，2009年建成通车，是世界最大的公轨合建斜拉桥之一。",
+        "aliases": ["长江大桥", "崇明长江大桥", "上海长江隧桥"]
     },
     "南浦大桥": {
         "desc": "南浦大桥是上海市区第一座跨越黄浦江的大桥，建成于1991年，全长8346米，采用双塔双索面斜拉桥结构。",
@@ -88,37 +132,107 @@ SHANGHAI_LANDMARKS = {
         "desc": "杨浦大桥是上海跨越黄浦江的斜拉桥，建成于1993年，全长7658米，曾是世界最大跨径的斜拉桥之一。",
         "aliases": ["上海杨浦大桥"]
     },
-    "外白渡桥": {
-        "desc": "外白渡桥是上海标志性桥梁，位于苏州河汇入黄浦江口，是中国第一座全钢结构铆接桥梁，也是上海经典影视取景地。",
-        "aliases": ["上海外白渡桥"]
+    "人民英雄纪念塔": {
+        "desc": "上海市人民英雄纪念塔位于外滩黄浦公园内，建成于1993年，塔高60米，由三根枪状立柱组成，是为纪念上海革命先烈而建。",
+        "aliases": ["人民英雄纪念碑", "上海人民英雄纪念塔", "外滩纪念塔"]
     },
-    "陆家嘴": {
-        "desc": "陆家嘴是上海金融中心，位于浦东新区黄浦江畔，聚集了众多跨国银行总部和超高层摩天大楼，是中国金融核心区。",
-        "aliases": ["陆家嘴金融区", "上海陆家嘴"]
-    },
-    "田子坊": {
-        "desc": "田子坊是上海著名创意产业聚集区，位于泰康路，由上海特色石库门里弄演变而来，充满文艺气息和老上海风情。",
-        "aliases": ["上海田子坊"]
-    },
-    "新天地": {
-        "desc": "上海新天地是具有上海历史文化风貌的都市景点，以上海近代石库门建筑旧区为基础改造，融合了历史与时尚。",
-        "aliases": ["上海新天地"]
-    },
+    # 主题乐园与休闲
     "上海迪士尼乐园": {
         "desc": "上海迪士尼乐园是中国内地首座迪士尼主题乐园，位于浦东新区川沙新镇，2016年正式开园，是全球第六座迪士尼乐园。",
-        "aliases": ["迪士尼乐园", "上海迪士尼"]
+        "aliases": ["迪士尼乐园", "上海迪士尼", "迪士尼"]
     },
-    "武康大楼": {
-        "desc": "武康大楼是上海标志性历史建筑，位于淮海中路和武康路交叉口，建于1924年，是上海第一座外廊式公寓大楼。",
-        "aliases": ["上海武康大楼"]
+    "上海海昌海洋公园": {
+        "desc": "上海海昌海洋公园位于临港新城滴水湖畔，为国家4A级旅游景区，拥有五大主题区、六大动物展示场馆和超3万只珍稀海洋动物，是华东地区大型海洋主题公园。",
+        "aliases": ["海昌海洋公园", "上海海昌极地海洋公园", "临港海昌海洋公园"]
     },
-    "城隍庙": {
-        "desc": "上海城隍庙是上海著名道教宫观，始建于明代永乐年间，周边是上海传统民俗商业区，汇聚了众多上海老字号和特色小吃。",
-        "aliases": ["上海城隍庙", "老城隍庙"]
+    "上海欢乐谷": {
+        "desc": "上海欢乐谷位于松江区，是大型主题乐园，拥有七大主题区和百余项游乐项目，是上海热门的亲子游玩和休闲娱乐目的地。",
+        "aliases": ["欢乐谷", "松江欢乐谷"]
+    },
+    "滴水湖": {
+        "desc": "滴水湖位于上海浦东新区临港新城，是人工开挖的圆形湖泊，直径约2.6公里，总面积5.56平方公里，是临港新片区的核心景观地标。",
+        "aliases": ["上海滴水湖", "临港滴水湖"]
+    },
+    # 文化场馆
+    "上海博物馆": {
+        "desc": "上海博物馆位于人民广场，是大型中国古代艺术博物馆，馆藏文物近百万件，以青铜器、陶瓷、书画、印章为特色，是上海文化地标之一。",
+        "aliases": ["上博", "上海博物馆人民广场馆"]
+    },
+    "上海科技馆": {
+        "desc": "上海科技馆位于浦东新区世纪大道，是国家5A级旅游景区，以科学传播为主题，拥有多个主题展区和特效影院，是科普教育基地。",
+        "aliases": ["上海科技馆"]
+    },
+    "上海天文馆": {
+        "desc": "上海天文馆位于临港新片区，是全球建筑面积最大的天文馆，以“连接人和宇宙”为主题，展示天文知识，是科普和网红打卡地标。",
+        "aliases": ["上海天文馆临港"]
+    },
+    "中华艺术宫": {
+        "desc": "中华艺术宫位于浦东新区，由世博会中国馆改造而成，以当代艺术为主题，标志性的“东方之冠”红色建筑是上海文化地标之一。",
+        "aliases": ["上海中华艺术宫", "世博会中国馆"]
+    },
+    # 寺庙宗教
+    "静安寺": {
+        "desc": "静安寺位于静安区南京西路，是上海著名的佛教寺院，始建于三国时期，历史悠久，地处繁华商圈，是上海中心城区的文化地标。",
+        "aliases": ["上海静安寺"]
+    },
+    "龙华寺": {
+        "desc": "龙华寺位于徐汇区，是上海历史最悠久、规模最大的佛教寺院，始建于三国时期，寺内龙华塔是上海现存最古老的古塔之一。",
+        "aliases": ["上海龙华寺", "龙华古塔"]
+    },
+    "玉佛寺": {
+        "desc": "玉佛寺位于普陀区，是上海著名的佛教禅宗寺院，因供奉玉佛而闻名，是上海三大名刹之一，建筑古朴典雅。",
+        "aliases": ["上海玉佛寺", "玉佛禅寺"]
+    },
+    # 商业街区
+    "南京路步行街": {
+        "desc": "南京路步行街是上海最繁华的商业街，西起西藏中路，东至河南中路，全长1033米，被誉为“中华商业第一街”。",
+        "aliases": ["南京路", "南京东路", "上海南京路"]
+    },
+    "南京西路": {
+        "desc": "南京西路是上海高端商业街区，汇聚了众多顶级商场和奢侈品品牌，与静安寺商圈相连，是上海时尚地标。",
+        "aliases": ["上海南京西路", "静安寺商圈"]
+    },
+    "淮海路": {
+        "desc": "淮海路是上海著名的商业街，以高雅时尚著称，沿途遍布历史建筑和高端品牌，被誉为“东方香榭丽舍大街”。",
+        "aliases": ["上海淮海路", "淮海中路"]
+    },
+    "安福路": {
+        "desc": "安福路位于徐汇区，是上海知名的文艺潮流街区，汇聚了众多特色小店、咖啡馆和话剧中心，是年轻人喜爱的休闲打卡地。",
+        "aliases": ["上海安福路"]
+    },
+    # 自然与公园
+    "上海野生动物园": {
+        "desc": "上海野生动物园位于浦东新区，是国家5A级旅游景区，拥有上万头野生动物，可车览散养动物，是上海热门的亲子旅游目的地。",
+        "aliases": ["上海野生动物园"]
+    },
+    "辰山植物园": {
+        "desc": "上海辰山植物园位于松江区，是国家4A级旅游景区，集科研、科普和观赏游览于一体，拥有矿坑花园等特色景观和丰富的植物资源。",
+        "aliases": ["上海辰山植物园", "辰山植物园"]
+    },
+    "共青森林公园": {
+        "desc": "共青森林公园位于杨浦区黄浦江畔，是上海市区最大的森林公园之一，以森林景观为特色，是市民休闲露营的热门目的地。",
+        "aliases": ["上海共青森林公园", "共青国家森林公园"]
+    },
+    "滨江大道": {
+        "desc": "滨江大道位于浦东新区陆家嘴黄浦江畔，与外滩隔江相望，是欣赏外滩全景和黄浦江景的绝佳地点，也是市民休闲散步的好去处。",
+        "aliases": ["上海滨江大道", "浦东滨江大道"]
+    },
+    # 交通枢纽
+    "虹桥机场": {
+        "desc": "上海虹桥国际机场是上海两大国际机场之一，位于长宁区和闵行区交界处，是中国主要的航空枢纽之一，紧邻虹桥高铁站。",
+        "aliases": ["上海虹桥机场", "虹桥国际机场"]
+    },
+    "浦东机场": {
+        "desc": "上海浦东国际机场是上海两大国际机场之一，位于浦东新区，是中国最大的航空枢纽之一，也是全球重要的航空货运中心。",
+        "aliases": ["上海浦东机场", "浦东国际机场", "PVG"]
+    },
+    "上海火车站": {
+        "desc": "上海站是上海主要铁路客运站之一，位于静安区秣陵路，始建于1908年，是上海铁路枢纽的重要组成部分，俗称“新客站”。",
+        "aliases": ["上海站", "新客站", "上海火车总站"]
     }
 }
 
-# 提取所有地标名称+别名的关键词列表，用于快速匹配
+# 预生成匹配索引
 ALL_LANDMARK_KEYWORDS = []
 LANDMARK_NAME_MAP = {}
 for main_name, info in SHANGHAI_LANDMARKS.items():
@@ -149,7 +263,7 @@ def validate_config():
     if not ARK_CONFIG["endpoint_id"]:
         st.error("❌ 请配置ARK_ENDPOINT_ID（推理接入点ID）")
         st.stop()
-    if not ARK_CONFIG["vision_endpoint_id"] or ARK_CONFIG["vision_endpoint_id"] == "你的视觉模型接入点ID":
+    if not ARK_CONFIG["vision_endpoint_id"]:
         st.error("❌ 请配置ARK_VISION_ENDPOINT_ID（视觉模型接入点ID，ep-开头）")
         st.stop()
 
@@ -198,14 +312,6 @@ def set_styles():
     .stApp {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         padding-top: 0;
-    }
-    
-    .stApp[data-local="true"] {
-        background: linear-gradient(135deg, #f5f0e6 0%, #e8dcc8 100%);
-        background-image: url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?ixlib=rb-4.0.3&auto=format&fit=crop&w=1950&q=80');
-        background-size: cover;
-        background-attachment: fixed;
-        background-blend-mode: overlay;
     }
     
     .top-nav {
@@ -479,7 +585,7 @@ with col3:
         st.session_state.local_mode = not st.session_state.local_mode
         st.rerun()
 
-# ===================== 📸 图片识别模式（纯文本关键词匹配版）=====================
+# ===================== 📸 图片识别模式（优化匹配+AI兜底版）=====================
 if st.session_state.mode == "图片识别模式":
     # 上传图片区域
     if not st.session_state.current_image:
@@ -527,13 +633,13 @@ if st.session_state.mode == "图片识别模式":
             debug_logs = []
             
             try:
-                # 第一轮：直接让AI列地标名称，纯文本输出，不要求JSON
+                # AI识别：同时输出名称+一句话介绍，用固定格式分隔
                 response = client.chat.completions.create(
                     model=ARK_CONFIG["vision_endpoint_id"],
                     messages=[
                         {
                             "role": "system",
-                            "content": "你是上海地标识别专家。请识别图片中的上海地标建筑，只输出地标名称，多个用中文逗号分隔，不要任何解释、序号、标点符号以外的内容。"
+                            "content": "你是上海地标识别专家。识别图片中的上海地标，输出格式：地标名称|一句话介绍，多个地标用中文分号分隔。只输出结果，不要任何解释、序号或其他内容。"
                         },
                         {
                             "role": "user",
@@ -550,63 +656,102 @@ if st.session_state.mode == "图片识别模式":
                 ai_output = response.choices[0].message.content.strip()
                 debug_logs.append(f"AI原始输出: {ai_output}")
                 
-                # 清洗输出文本
-                ai_output = re.sub(r'[0-9、\.\n\r]', '', ai_output)
-                ai_output = ai_output.replace("，", ",").replace("、", ",")
+                # 清洗并分割AI输出
+                ai_output = ai_output.replace("\n", "").replace("；", ";")
+                ai_items = [item.strip() for item in ai_output.split(";") if item.strip()]
                 
-                # 分割地标名称
-                ai_landmarks = [name.strip() for name in ai_output.split(",") if name.strip()]
-                debug_logs.append(f"分割后地标列表: {ai_landmarks}")
+                parsed_landmarks = []
+                for item in ai_items:
+                    if "|" in item:
+                        name_part, desc_part = item.split("|", 1)
+                        parsed_landmarks.append({
+                            "name": name_part.strip(),
+                            "desc": desc_part.strip(),
+                            "source": "AI识别"
+                        })
+                    else:
+                        parsed_landmarks.append({
+                            "name": item.strip(),
+                            "desc": f"这是上海著名的{item.strip()}，是上海知名的地标景点之一。",
+                            "source": "AI识别(无介绍)"
+                        })
                 
-                # 多级匹配
+                debug_logs.append(f"解析后地标列表: {[x['name'] for x in parsed_landmarks]}")
+                
+                # 四级匹配：优先匹配本地库，保证介绍质量
                 matched_names = set()
+                final_results = []
                 
-                # 第一级：精确匹配主名称
-                for name in ai_landmarks:
-                    if name in SHANGHAI_LANDMARKS:
+                # 第1级：精确匹配主名称
+                for lm in parsed_landmarks:
+                    name = lm["name"]
+                    if name in SHANGHAI_LANDMARKS and name not in matched_names:
+                        final_results.append({
+                            "name": name,
+                            "description": SHANGHAI_LANDMARKS[name]["desc"]
+                        })
                         matched_names.add(name)
                 
-                # 第二级：别名匹配
-                for name in ai_landmarks:
-                    if name in LANDMARK_NAME_MAP:
-                        matched_names.add(LANDMARK_NAME_MAP[name])
+                # 第2级：别名匹配
+                for lm in parsed_landmarks:
+                    name = lm["name"]
+                    if name in LANDMARK_NAME_MAP and LANDMARK_NAME_MAP[name] not in matched_names:
+                        main_name = LANDMARK_NAME_MAP[name]
+                        final_results.append({
+                            "name": main_name,
+                            "description": SHANGHAI_LANDMARKS[main_name]["desc"]
+                        })
+                        matched_names.add(main_name)
                 
-                # 第三级：子串模糊匹配（AI输出不全时也能匹配）
-                if not matched_names:
-                    for keyword in ALL_LANDMARK_KEYWORDS:
-                        for ai_name in ai_landmarks:
-                            if keyword in ai_name or ai_name in keyword:
-                                matched_names.add(LANDMARK_NAME_MAP[keyword])
-                                break
+                # 第3级：子串模糊匹配
+                if len(final_results) == 0:
+                    for lm in parsed_landmarks:
+                        name = lm["name"]
+                        for keyword in ALL_LANDMARK_KEYWORDS:
+                            if keyword in name or name in keyword:
+                                main_name = LANDMARK_NAME_MAP[keyword]
+                                if main_name not in matched_names:
+                                    final_results.append({
+                                        "name": main_name,
+                                        "description": SHANGHAI_LANDMARKS[main_name]["desc"]
+                                    })
+                                    matched_names.add(main_name)
+                                    break
                 
-                # 第四级：全文本关键词扫描（AI输出带描述时也能提取）
-                if not matched_names:
+                # 第4级：全文关键词扫描（防止AI输出带描述）
+                if len(final_results) == 0:
                     full_text = response.choices[0].message.content
                     for keyword in ALL_LANDMARK_KEYWORDS:
                         if keyword in full_text:
-                            matched_names.add(LANDMARK_NAME_MAP[keyword])
+                            main_name = LANDMARK_NAME_MAP[keyword]
+                            if main_name not in matched_names:
+                                final_results.append({
+                                    "name": main_name,
+                                    "description": SHANGHAI_LANDMARKS[main_name]["desc"]
+                                })
+                                matched_names.add(main_name)
                 
-                debug_logs.append(f"匹配到的地标: {list(matched_names)}")
+                debug_logs.append(f"本地库匹配到的地标: {list(matched_names)}")
                 
-                # 生成结果
-                for name in matched_names:
-                    matched_results.append({
-                        "name": name,
-                        "description": SHANGHAI_LANDMARKS[name]["desc"]
-                    })
+                # AI兜底：本地库完全没匹配到，就用AI识别的原始结果
+                if len(final_results) == 0 and len(parsed_landmarks) > 0:
+                    final_results = parsed_landmarks
+                    debug_logs.append("触发AI原生结果兜底：使用AI识别的原始结果")
+                
+                matched_results = final_results
                 
             except Exception as e:
                 debug_logs.append(f"API调用错误: {str(e)}")
                 import traceback
                 debug_logs.append(f"错误详情: {traceback.format_exc()}")
             
-            # 最终后备：如果完全没匹配到
+            # 最终终极后备
             if not matched_results:
                 matched_results.append({
                     "name": "上海城市景观",
                     "description": "这是上海的城市景观。上海是中国最大的城市，也是国际经济、金融、贸易、航运中心，拥有丰富的历史文化和现代化的城市风貌。"
                 })
-                debug_logs.append("触发后备机制：未匹配到明确地标")
+                debug_logs.append("触发最终后备机制")
             
             st.session_state.hotspots = matched_results
             st.session_state.debug_info = "\n".join(debug_logs)
@@ -669,7 +814,7 @@ if st.session_state.mode == "图片识别模式":
             
             st.components.v1.html(html_content, height=700, scrolling=True)
             
-            # 调试信息（默认显示，方便排查）
+            # 调试信息
             with st.expander("🔧 识别调试信息", expanded=False):
                 st.code(st.session_state.debug_info)
         
