@@ -18,7 +18,9 @@ import re
 load_dotenv()
 ARK_CONFIG = {
     "api_key": st.secrets.get("ARK_API_KEY", os.getenv("ARK_API_KEY", "")),
-    "endpoint_id": st.secrets.get("ARK_ENDPOINT_ID", os.getenv("ARK_ENDPOINT_ID", "bot-20260608181219-tlqzx")),
+    # 文本对话模型：ep-开头的推理接入点，对应 Doubao-lite/pro 等纯文本模型
+    "endpoint_id": st.secrets.get("ARK_ENDPOINT_ID", os.getenv("ARK_ENDPOINT_ID", "")),
+    # 视觉多模态模型：ep-开头的推理接入点，对应 Doubao-vision 系列视觉模型
     "vision_endpoint_id": st.secrets.get("ARK_VISION_ENDPOINT_ID", os.getenv("ARK_VISION_ENDPOINT_ID", "")),
     "base_url": "https://ark.cn-beijing.volces.com/api/v3",
     "tts_model": "speech-tts-v1"
@@ -31,12 +33,13 @@ APP_CONFIG = {
     "max_tokens": 1000,
     "temperature": 0.1,
     "api_timeout": 60,
-    "max_retry": 3
+    "max_retry": 3,
+    "debug_mode": False  # 开启后会显示API错误详情，排查问题用
 }
 
-# ===================== 上海地标库（大幅扩充+别名匹配）=====================
+# ===================== 上海地标库（全品类覆盖）=====================
 SHANGHAI_LANDMARKS = {
-    # 核心摩天楼与天际线
+    # 核心摩天楼
     "东方明珠": {
         "desc": "东方明珠广播电视塔是上海的标志性文化景观之一，位于浦东新区陆家嘴，塔高约468米，是国家AAAAA级旅游景区，也是上海天际线的核心标志。",
         "aliases": ["东方明珠塔", "东方明珠广播电视塔", "明珠塔"]
@@ -74,13 +77,13 @@ SHANGHAI_LANDMARKS = {
         "desc": "中共一大会址是中国共产党诞生地，位于黄浦区兴业路76号，1921年中国共产党第一次全国代表大会在此召开。",
         "aliases": ["一大会址", "一大会议旧址", "兴业路一大会址"]
     },
+    "淞沪会战": {
+        "desc": "淞沪会战是抗日战争中第一场大型会战，1937年8月至11月在上海爆发，是中日双方规模最大、战斗最惨烈的战役之一，粉碎了日本“三个月灭亡中国”的妄想。",
+        "aliases": ["八一三淞沪会战", "淞沪抗战", "上海会战"]
+    },
     "武康大楼": {
         "desc": "武康大楼是上海标志性历史建筑，位于淮海中路和武康路交叉口，建于1924年，是上海第一座外廊式公寓大楼，网红打卡地标。",
         "aliases": ["上海武康大楼", "诺曼底公寓"]
-    },
-    "武康路": {
-        "desc": "武康路位于徐汇区，是上海著名的历史风貌道路，沿途遍布老洋房和历史建筑，文艺气息浓厚，是上海网红打卡地之一。",
-        "aliases": ["上海武康路"]
     },
     "新天地": {
         "desc": "上海新天地是具有上海历史文化风貌的都市景点，以上海近代石库门建筑旧区为基础改造，融合了历史与时尚。",
@@ -89,14 +92,6 @@ SHANGHAI_LANDMARKS = {
     "田子坊": {
         "desc": "田子坊是上海著名创意产业聚集区，位于泰康路，由上海特色石库门里弄演变而来，充满文艺气息和老上海风情。",
         "aliases": ["上海田子坊"]
-    },
-    "思南公馆": {
-        "desc": "思南公馆是上海历史文化风貌区，拥有花园洋房、新式里弄等多种建筑风格，是上海高端人文地标之一。",
-        "aliases": ["上海思南公馆"]
-    },
-    "1933老场坊": {
-        "desc": "1933老场坊由原上海工部局宰牲场改造而成，独特的古罗马廊柱与工业风建筑，是上海知名创意园区和摄影打卡地。",
-        "aliases": ["老场坊1933", "上海1933老场坊"]
     },
     # 园林与古镇
     "豫园": {
@@ -110,10 +105,6 @@ SHANGHAI_LANDMARKS = {
     "朱家角古镇": {
         "desc": "朱家角古镇位于青浦区，是上海四大历史文化名镇之一，有着千年历史，保留了典型的江南水乡风貌，小桥流水独具韵味。",
         "aliases": ["朱家角", "青浦朱家角", "上海朱家角"]
-    },
-    "七宝古镇": {
-        "desc": "七宝古镇位于闵行区，是上海著名的江南水乡古镇，始建于北宋，因七宝寺得名，老街汇聚了众多上海传统小吃和特色商铺。",
-        "aliases": ["七宝老街", "七宝古镇", "闵行七宝"]
     },
     # 桥梁与交通地标
     "东海大桥": {
@@ -142,12 +133,8 @@ SHANGHAI_LANDMARKS = {
         "aliases": ["迪士尼乐园", "上海迪士尼", "迪士尼"]
     },
     "上海海昌海洋公园": {
-        "desc": "上海海昌海洋公园位于临港新城滴水湖畔，为国家4A级旅游景区，拥有五大主题区、六大动物展示场馆和超3万只珍稀海洋动物，是华东地区大型海洋主题公园。",
+        "desc": "上海海昌海洋公园位于临港新城滴水湖畔，为国家4A级旅游景区，拥有五大主题区、六大动物展示场馆和超3万只珍稀海洋动物。",
         "aliases": ["海昌海洋公园", "上海海昌极地海洋公园", "临港海昌海洋公园"]
-    },
-    "上海欢乐谷": {
-        "desc": "上海欢乐谷位于松江区，是大型主题乐园，拥有七大主题区和百余项游乐项目，是上海热门的亲子游玩和休闲娱乐目的地。",
-        "aliases": ["欢乐谷", "松江欢乐谷"]
     },
     "滴水湖": {
         "desc": "滴水湖位于上海浦东新区临港新城，是人工开挖的圆形湖泊，直径约2.6公里，总面积5.56平方公里，是临港新片区的核心景观地标。",
@@ -155,67 +142,21 @@ SHANGHAI_LANDMARKS = {
     },
     # 文化场馆
     "上海博物馆": {
-        "desc": "上海博物馆位于人民广场，是大型中国古代艺术博物馆，馆藏文物近百万件，以青铜器、陶瓷、书画、印章为特色，是上海文化地标之一。",
+        "desc": "上海博物馆位于人民广场，是大型中国古代艺术博物馆，馆藏文物近百万件，以青铜器、陶瓷、书画、印章为特色。",
         "aliases": ["上博", "上海博物馆人民广场馆"]
-    },
-    "上海科技馆": {
-        "desc": "上海科技馆位于浦东新区世纪大道，是国家5A级旅游景区，以科学传播为主题，拥有多个主题展区和特效影院，是科普教育基地。",
-        "aliases": ["上海科技馆"]
-    },
-    "上海天文馆": {
-        "desc": "上海天文馆位于临港新片区，是全球建筑面积最大的天文馆，以“连接人和宇宙”为主题，展示天文知识，是科普和网红打卡地标。",
-        "aliases": ["上海天文馆临港"]
     },
     "中华艺术宫": {
         "desc": "中华艺术宫位于浦东新区，由世博会中国馆改造而成，以当代艺术为主题，标志性的“东方之冠”红色建筑是上海文化地标之一。",
         "aliases": ["上海中华艺术宫", "世博会中国馆"]
-    },
-    # 寺庙宗教
-    "静安寺": {
-        "desc": "静安寺位于静安区南京西路，是上海著名的佛教寺院，始建于三国时期，历史悠久，地处繁华商圈，是上海中心城区的文化地标。",
-        "aliases": ["上海静安寺"]
-    },
-    "龙华寺": {
-        "desc": "龙华寺位于徐汇区，是上海历史最悠久、规模最大的佛教寺院，始建于三国时期，寺内龙华塔是上海现存最古老的古塔之一。",
-        "aliases": ["上海龙华寺", "龙华古塔"]
-    },
-    "玉佛寺": {
-        "desc": "玉佛寺位于普陀区，是上海著名的佛教禅宗寺院，因供奉玉佛而闻名，是上海三大名刹之一，建筑古朴典雅。",
-        "aliases": ["上海玉佛寺", "玉佛禅寺"]
     },
     # 商业街区
     "南京路步行街": {
         "desc": "南京路步行街是上海最繁华的商业街，西起西藏中路，东至河南中路，全长1033米，被誉为“中华商业第一街”。",
         "aliases": ["南京路", "南京东路", "上海南京路"]
     },
-    "南京西路": {
-        "desc": "南京西路是上海高端商业街区，汇聚了众多顶级商场和奢侈品品牌，与静安寺商圈相连，是上海时尚地标。",
-        "aliases": ["上海南京西路", "静安寺商圈"]
-    },
     "淮海路": {
         "desc": "淮海路是上海著名的商业街，以高雅时尚著称，沿途遍布历史建筑和高端品牌，被誉为“东方香榭丽舍大街”。",
         "aliases": ["上海淮海路", "淮海中路"]
-    },
-    "安福路": {
-        "desc": "安福路位于徐汇区，是上海知名的文艺潮流街区，汇聚了众多特色小店、咖啡馆和话剧中心，是年轻人喜爱的休闲打卡地。",
-        "aliases": ["上海安福路"]
-    },
-    # 自然与公园
-    "上海野生动物园": {
-        "desc": "上海野生动物园位于浦东新区，是国家5A级旅游景区，拥有上万头野生动物，可车览散养动物，是上海热门的亲子旅游目的地。",
-        "aliases": ["上海野生动物园"]
-    },
-    "辰山植物园": {
-        "desc": "上海辰山植物园位于松江区，是国家4A级旅游景区，集科研、科普和观赏游览于一体，拥有矿坑花园等特色景观和丰富的植物资源。",
-        "aliases": ["上海辰山植物园", "辰山植物园"]
-    },
-    "共青森林公园": {
-        "desc": "共青森林公园位于杨浦区黄浦江畔，是上海市区最大的森林公园之一，以森林景观为特色，是市民休闲露营的热门目的地。",
-        "aliases": ["上海共青森林公园", "共青国家森林公园"]
-    },
-    "滨江大道": {
-        "desc": "滨江大道位于浦东新区陆家嘴黄浦江畔，与外滩隔江相望，是欣赏外滩全景和黄浦江景的绝佳地点，也是市民休闲散步的好去处。",
-        "aliases": ["上海滨江大道", "浦东滨江大道"]
     },
     # 交通枢纽
     "虹桥机场": {
@@ -225,10 +166,6 @@ SHANGHAI_LANDMARKS = {
     "浦东机场": {
         "desc": "上海浦东国际机场是上海两大国际机场之一，位于浦东新区，是中国最大的航空枢纽之一，也是全球重要的航空货运中心。",
         "aliases": ["上海浦东机场", "浦东国际机场", "PVG"]
-    },
-    "上海火车站": {
-        "desc": "上海站是上海主要铁路客运站之一，位于静安区秣陵路，始建于1908年，是上海铁路枢纽的重要组成部分，俗称“新客站”。",
-        "aliases": ["上海站", "新客站", "上海火车总站"]
     }
 }
 
@@ -253,18 +190,15 @@ EASTER_EGGS = {
 # ===================== ✅ 配置校验 =====================
 def validate_config():
     if not ARK_CONFIG["api_key"]:
-        st.error("❌ 请配置ARK_API_KEY！")
-        st.markdown("""
-        配置方式：
-        1. 本地开发：项目根目录新建`.env`，写入`ARK_API_KEY=你的密钥`
-        2. 云端部署：在Streamlit Secrets中添加`ARK_API_KEY`
-        """)
+        st.error("❌ 请配置ARK_API_KEY")
         st.stop()
     if not ARK_CONFIG["endpoint_id"]:
-        st.error("❌ 请配置ARK_ENDPOINT_ID（推理接入点ID）")
+        st.error("❌ 请配置ARK_ENDPOINT_ID（文本对话模型接入点，ep-开头）")
+        st.markdown("在火山方舟「在线推理」创建纯文本模型（如Doubao-lite-32k）的接入点，获取ep-开头的ID")
         st.stop()
     if not ARK_CONFIG["vision_endpoint_id"]:
-        st.error("❌ 请配置ARK_VISION_ENDPOINT_ID（视觉模型接入点ID，ep-开头）")
+        st.error("❌ 请配置ARK_VISION_ENDPOINT_ID（视觉模型接入点，ep-开头）")
+        st.markdown("在火山方舟「在线推理」创建视觉模型（如Doubao-1.5-vision-pro-32k）的接入点，获取ep-开头的ID")
         st.stop()
 
 validate_config()
@@ -520,16 +454,13 @@ def set_styles():
         border-radius: 15px;
     }
     
-    .debug-box {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
+    .error-detail {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 10px;
         border-radius: 8px;
-        padding: 12px;
-        margin-top: 10px;
         font-size: 12px;
-        color: #666;
-        max-width: 1200px;
-        width: 100%;
+        margin-top: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -551,7 +482,8 @@ def init_session_state():
         "img_width": 0,
         "img_height": 0,
         "image_analyzed": False,
-        "debug_info": ""
+        "debug_info": "",
+        "chat_error": ""
     }
     
     for key, value in defaults.items():
@@ -585,7 +517,7 @@ with col3:
         st.session_state.local_mode = not st.session_state.local_mode
         st.rerun()
 
-# ===================== 📸 图片识别模式（优化匹配+AI兜底版）=====================
+# ===================== 📸 图片识别模式 =====================
 if st.session_state.mode == "图片识别模式":
     # 上传图片区域
     if not st.session_state.current_image:
@@ -633,7 +565,7 @@ if st.session_state.mode == "图片识别模式":
             debug_logs = []
             
             try:
-                # AI识别：同时输出名称+一句话介绍，用固定格式分隔
+                # 调用视觉模型识别
                 response = client.chat.completions.create(
                     model=ARK_CONFIG["vision_endpoint_id"],
                     messages=[
@@ -678,11 +610,11 @@ if st.session_state.mode == "图片识别模式":
                 
                 debug_logs.append(f"解析后地标列表: {[x['name'] for x in parsed_landmarks]}")
                 
-                # 四级匹配：优先匹配本地库，保证介绍质量
+                # 四级匹配本地库
                 matched_names = set()
                 final_results = []
                 
-                # 第1级：精确匹配主名称
+                # 1. 精确匹配主名称
                 for lm in parsed_landmarks:
                     name = lm["name"]
                     if name in SHANGHAI_LANDMARKS and name not in matched_names:
@@ -692,7 +624,7 @@ if st.session_state.mode == "图片识别模式":
                         })
                         matched_names.add(name)
                 
-                # 第2级：别名匹配
+                # 2. 别名匹配
                 for lm in parsed_landmarks:
                     name = lm["name"]
                     if name in LANDMARK_NAME_MAP and LANDMARK_NAME_MAP[name] not in matched_names:
@@ -703,7 +635,7 @@ if st.session_state.mode == "图片识别模式":
                         })
                         matched_names.add(main_name)
                 
-                # 第3级：子串模糊匹配
+                # 3. 子串模糊匹配
                 if len(final_results) == 0:
                     for lm in parsed_landmarks:
                         name = lm["name"]
@@ -718,7 +650,7 @@ if st.session_state.mode == "图片识别模式":
                                     matched_names.add(main_name)
                                     break
                 
-                # 第4级：全文关键词扫描（防止AI输出带描述）
+                # 4. 全文关键词扫描
                 if len(final_results) == 0:
                     full_text = response.choices[0].message.content
                     for keyword in ALL_LANDMARK_KEYWORDS:
@@ -733,7 +665,7 @@ if st.session_state.mode == "图片识别模式":
                 
                 debug_logs.append(f"本地库匹配到的地标: {list(matched_names)}")
                 
-                # AI兜底：本地库完全没匹配到，就用AI识别的原始结果
+                # AI原生结果兜底
                 if len(final_results) == 0 and len(parsed_landmarks) > 0:
                     final_results = parsed_landmarks
                     debug_logs.append("触发AI原生结果兜底：使用AI识别的原始结果")
@@ -741,11 +673,11 @@ if st.session_state.mode == "图片识别模式":
                 matched_results = final_results
                 
             except Exception as e:
-                debug_logs.append(f"API调用错误: {str(e)}")
+                debug_logs.append(f"视觉API调用错误: {str(e)}")
                 import traceback
                 debug_logs.append(f"错误详情: {traceback.format_exc()}")
             
-            # 最终终极后备
+            # 最终后备
             if not matched_results:
                 matched_results.append({
                     "name": "上海城市景观",
@@ -815,8 +747,9 @@ if st.session_state.mode == "图片识别模式":
             st.components.v1.html(html_content, height=700, scrolling=True)
             
             # 调试信息
-            with st.expander("🔧 识别调试信息", expanded=False):
-                st.code(st.session_state.debug_info)
+            if APP_CONFIG["debug_mode"]:
+                with st.expander("🔧 识别调试信息", expanded=False):
+                    st.code(st.session_state.debug_info)
         
         st.markdown('</div>', unsafe_allow_html=True)
         
@@ -842,7 +775,7 @@ if st.session_state.mode == "图片识别模式":
                 st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-# ===================== 💬 对话模式 =====================
+# ===================== 💬 对话模式（修复版）=====================
 else:
     with st.sidebar:
         st.title(APP_CONFIG["page_title"])
@@ -860,10 +793,16 @@ else:
         if st.button("清空对话历史", use_container_width=True):
             st.session_state.messages = []
             st.session_state.last_topic = None
+            st.session_state.chat_error = ""
             st.rerun()
     
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
+    # 显示对话错误详情（调试模式）
+    if APP_CONFIG["debug_mode"] and st.session_state.chat_error:
+        st.markdown(f'<div class="error-detail">⚠️ 上次调用错误：{st.session_state.chat_error}</div>', unsafe_allow_html=True)
+    
+    # 显示历史消息
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             if "shanghai_dialect" in message and message["shanghai_dialect"]:
@@ -932,15 +871,21 @@ else:
                         2. 然后用标准普通话详细介绍
                         3. 加入本地小知识或实用建议
                         4. 语气亲切自然，带点上海人的幽默
+                        5. 内容必须准确，符合上海的实际情况
                         """
                     else:
-                        system_prompt = f"""你是专业的上海城市智能体。{context}
+                        system_prompt = f"""你是专业的上海城市智能体，精通上海的历史、地理、文化、景点、美食、交通等所有相关知识。
+                        {context}
                         请提供准确、通俗、简洁的介绍。
                         优先使用结构化格式（标题、列表）。
                         回答要全面但不冗长，突出重点。
+                        所有内容必须和上海相关，准确可靠。
                         """
                     
+                    answer = ""
+                    error_msg = ""
                     try:
+                        # 调用文本对话模型
                         response = client.chat.completions.create(
                             model=ARK_CONFIG["endpoint_id"],
                             messages=[
@@ -953,9 +898,12 @@ else:
                         )
                         
                         answer = response.choices[0].message.content.strip()
+                        st.session_state.chat_error = ""
                         
                     except Exception as e:
-                        answer = "抱歉，暂时无法回答您的问题。您可以尝试询问：\n- 上海著名景点\n- 本帮菜推荐\n- 交通出行\n- 历史事件"
+                        error_msg = str(e)
+                        answer = f"抱歉，暂时无法回答您的问题。\n\n您可以尝试询问：\n- 上海著名景点\n- 本帮菜推荐\n- 交通出行\n- 历史事件"
+                        st.session_state.chat_error = error_msg
                     
                     shanghai_dialect = ""
                     mandarin_content = answer
@@ -971,6 +919,7 @@ else:
                     
                     st.markdown(mandarin_content)
                     
+                    # 语音合成
                     audio_content = None
                     try:
                         if st.session_state.local_mode:
